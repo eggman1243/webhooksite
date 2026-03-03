@@ -1,4 +1,4 @@
-# webhooksite
+# Webhook Site
 For managing Webhooks on Discord
 
 - Message option
