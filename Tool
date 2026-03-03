@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discord Webhook Controller</title>
+<style>
+body{
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg,#23272a,#2c2f33);
+  color:#fff;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+  flex-direction:column;
+}
+h1{
+  margin-bottom:15px;
+  animation:fadeIn 0.6s ease;
+}
+.panel{
+  background:#2f3136;
+  padding:20px;
+  border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  width:340px;
+}
+input,textarea{
+  width:100%;
+  padding:10px;
+  margin-top:8px;
+  border-radius:6px;
+  border:none;
+  outline:none;
+  background:#202225;
+  color:#fff;
+}
+textarea{resize:none;height:80px;}
+button{
+  width:100%;
+  margin-top:10px;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background:#5865f2;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+  transition:0.18s;
+}
+button:hover:not(:disabled){transform:scale(1.04);}
+button:disabled{background:#4a4c4e;cursor:not-allowed;}
+.dropdown{
+  overflow:hidden;
+  max-height:0;
+  transition:max-height 0.35s ease;
+}
+.dropdown.open{max-height:120px;}
+#notifications{
+  position:fixed;
+  top:15px;
+  right:15px;
+  width:260px;
+}
+.note{
+  background:#5865f2;
+  padding:10px;
+  margin:6px;
+  border-radius:6px;
+  animation:slide 0.35s forwards,fade 0.35s 2.7s forwards;
+}
+@keyframes slide{from{opacity:0;transform:translateX(80%);}to{opacity:1;transform:translateX(0);}}
+@keyframes fade{to{opacity:0;transform:translateX(80%);}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}
+.status{
+  font-size:12px;
+  margin-top:6px;
+  opacity:0.8;
+}
+</style>
+</head>
+<body>
+
+<h1>Webhook Controller</h1>
+
+<div class="panel">
+
+<input id="webhookInput" placeholder="Webhook URL here">
+<button id="validateBtn">Validate Webhook</button>
+<div class="status" id="statusText">Not validated</div>
+
+<button id="nameBtn" disabled>Change Webhook Name</button>
+<div class="dropdown" id="nameDrop">
+  <input id="newName" placeholder="New webhook name">
+  <button id="submitName">Apply Name</button>
+</div>
+
+<textarea id="messageBox" placeholder="Message" disabled></textarea>
+<button id="sendBtn" disabled>Send Message</button>
+
+<button id="spamBtn" disabled>Start Spam</button>
+<button id="stopSpamBtn" disabled>Stop Spam</button>
+
+<button id="deleteBtn" disabled style="background:#ed4245;">Delete Webhook</button>
+
+</div>
+
+<div id="notifications"></div>
+
+<audio id="clickSound" src="https://orangefreesounds.com/wp-content/uploads/2025/07/Plastic-button-click-sound-ui-tap-effect.mp3"></audio>
+<audio id="successSound" src="https://www.freesoundslibrary.com/wp-content/uploads/2025/12/soft-error-tone-sound-effect.mp3"></audio>
+<audio id="errorSound" src="https://www.orangefreesounds.com/wp-content/uploads/2015/08/Error-sound-effect.mp3"></audio>
+
+<script>
+let webhook="";
+let valid=false;
+let spammer;
+
+const click=()=>document.getElementById("clickSound").play();
+const success=()=>document.getElementById("successSound").play();
+const error=()=>document.getElementById("errorSound").play();
+
+const notify=t=>{
+  const n=document.createElement("div");
+  n.className="note";
+  n.textContent=t;
+  document.getElementById("notifications").appendChild(n);
+  setTimeout(()=>n.remove(),3000);
+};
+
+const enable=()=>{
+  document.getElementById("nameBtn").disabled=false;
+  document.getElementById("sendBtn").disabled=false;
+  document.getElementById("spamBtn").disabled=false;
+  document.getElementById("deleteBtn").disabled=false;
+  document.getElementById("messageBox").disabled=false;
+};
+
+const disable=()=>{
+  document.getElementById("nameBtn").disabled=true;
+  document.getElementById("sendBtn").disabled=true;
+  document.getElementById("spamBtn").disabled=true;
+  document.getElementById("stopSpamBtn").disabled=true;
+  document.getElementById("deleteBtn").disabled=true;
+  document.getElementById("messageBox").disabled=true;
+};
+
+async function validate(url){
+  click();
+  try{
+    const r=await fetch(url);
+    if(r.ok){
+      webhook=url;
+      valid=true;
+      enable();
+      success();
+      notify("Webhook validated");
+      document.getElementById("statusText").textContent="Validated";
+    }else throw "";
+  }catch{
+    valid=false;
+    disable();
+    error();
+    notify("Invalid webhook URL");
+    document.getElementById("statusText").textContent="Invalid";
+  }
+}
+
+document.getElementById("validateBtn").onclick=()=>validate(document.getElementById("webhookInput").value);
+
+document.getElementById("webhookInput").oninput=()=>{
+  valid=false;
+  disable();
+  document.getElementById("statusText").textContent="Not validated";
+};
+
+document.getElementById("nameBtn").onclick=()=>{
+  click();
+  document.getElementById("nameDrop").classList.toggle("open");
+};
+
+document.getElementById("submitName").onclick=async()=>{
+  click();
+  const name=document.getElementById("newName").value;
+  if(!name||!valid) return;
+  try{
+    await fetch(webhook,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});
+    success();
+    notify("Name updated");
+    document.getElementById("nameDrop").classList.remove("open");
+  }catch{error();notify("Failed to update name");}
+};
+
+document.getElementById("sendBtn").onclick=async()=>{
+  click();
+  const msg=document.getElementById("messageBox").value;
+  if(!msg||!valid) return;
+  try{
+    await fetch(webhook,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:msg})});
+    success();
+    notify("Message sent");
+  }catch{error();notify("Send failed");}
+};
+
+document.getElementById("spamBtn").onclick=()=>{
+  click();
+  const msg=document.getElementById("messageBox").value;
+  if(!msg||!valid) return;
+  document.getElementById("stopSpamBtn").disabled=false;
+  spammer=setInterval(()=>fetch(webhook,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:msg})}),600);
+  success();
+  notify("Spam started");
+};
+
+document.getElementById("stopSpamBtn").onclick=()=>{
+  click();
+  clearInterval(spammer);
+  document.getElementById("stopSpamBtn").disabled=true;
+  notify("Spam stopped");
+};
+
+document.getElementById("deleteBtn").onclick=async()=>{
+  click();
+  if(!valid) return;
+  try{
+    await fetch(webhook,{method:"DELETE"});
+    success();
+    notify("Webhook deleted");
+    disable();
+    valid=false;
+    document.getElementById("statusText").textContent="Deleted";
+  }catch{error();notify("Delete failed");}
+};
+</script>
+
+</body>
+</html>
