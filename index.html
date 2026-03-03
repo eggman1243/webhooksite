@@ -72,7 +72,7 @@ button:disabled{background:#4a4c4e;cursor:not-allowed;}
 }
 @keyframes slide{from{opacity:0;transform:translateX(80%);}to{opacity:1;transform:translateX(0);}}
 @keyframes fade{to{opacity:0;transform:translateX(80%);}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);} }
 .status{
   font-size:12px;
   margin-top:6px;
@@ -81,46 +81,33 @@ button:disabled{background:#4a4c4e;cursor:not-allowed;}
 </style>
 </head>
 <body>
-
 <h1>Webhook Controller</h1>
-
 <div class="panel">
-
 <input id="webhookInput" placeholder="Webhook URL here">
 <button id="validateBtn">Validate Webhook</button>
 <div class="status" id="statusText">Not validated</div>
-
 <button id="nameBtn" disabled>Change Webhook Name</button>
 <div class="dropdown" id="nameDrop">
   <input id="newName" placeholder="New webhook name">
   <button id="submitName">Apply Name</button>
 </div>
-
 <textarea id="messageBox" placeholder="Message" disabled></textarea>
 <button id="sendBtn" disabled>Send Message</button>
-
 <button id="spamBtn" disabled>Start Spam</button>
 <button id="stopSpamBtn" disabled>Stop Spam</button>
-
 <button id="deleteBtn" disabled style="background:#ed4245;">Delete Webhook</button>
-
 </div>
-
 <div id="notifications"></div>
-
 <audio id="clickSound" src="https://orangefreesounds.com/wp-content/uploads/2025/07/Plastic-button-click-sound-ui-tap-effect.mp3"></audio>
 <audio id="successSound" src="https://www.freesoundslibrary.com/wp-content/uploads/2025/12/soft-error-tone-sound-effect.mp3"></audio>
 <audio id="errorSound" src="https://www.orangefreesounds.com/wp-content/uploads/2015/08/Error-sound-effect.mp3"></audio>
-
 <script>
 let webhook="";
 let valid=false;
 let spammer;
-
 const click=()=>document.getElementById("clickSound").play();
 const success=()=>document.getElementById("successSound").play();
 const error=()=>document.getElementById("errorSound").play();
-
 const notify=t=>{
   const n=document.createElement("div");
   n.className="note";
@@ -128,7 +115,6 @@ const notify=t=>{
   document.getElementById("notifications").appendChild(n);
   setTimeout(()=>n.remove(),3000);
 };
-
 const enable=()=>{
   document.getElementById("nameBtn").disabled=false;
   document.getElementById("sendBtn").disabled=false;
@@ -136,7 +122,6 @@ const enable=()=>{
   document.getElementById("deleteBtn").disabled=false;
   document.getElementById("messageBox").disabled=false;
 };
-
 const disable=()=>{
   document.getElementById("nameBtn").disabled=true;
   document.getElementById("sendBtn").disabled=true;
@@ -145,11 +130,27 @@ const disable=()=>{
   document.getElementById("deleteBtn").disabled=true;
   document.getElementById("messageBox").disabled=true;
 };
-
 async function validate(url){
   click();
+  if(!url.trim()){
+    error();
+    notify("Please enter a webhook URL");
+    document.getElementById("statusText").textContent="Invalid";
+    disable();
+    valid=false;
+    return;
+  }
+  const webhookRegex=/^https:\/\/(discord.com|discordapp.com)\/api\/webhooks\/\d+\/[\w-]+$/;
+  if(!webhookRegex.test(url)){
+    error();
+    notify("Invalid webhook format");
+    document.getElementById("statusText").textContent="Invalid";
+    disable();
+    valid=false;
+    return;
+  }
   try{
-    const r=await fetch(url);
+    const r=await fetch(url,{method:"GET"});
     if(r.ok){
       webhook=url;
       valid=true;
@@ -166,20 +167,16 @@ async function validate(url){
     document.getElementById("statusText").textContent="Invalid";
   }
 }
-
 document.getElementById("validateBtn").onclick=()=>validate(document.getElementById("webhookInput").value);
-
 document.getElementById("webhookInput").oninput=()=>{
   valid=false;
   disable();
   document.getElementById("statusText").textContent="Not validated";
 };
-
 document.getElementById("nameBtn").onclick=()=>{
   click();
   document.getElementById("nameDrop").classList.toggle("open");
 };
-
 document.getElementById("submitName").onclick=async()=>{
   click();
   const name=document.getElementById("newName").value;
@@ -191,7 +188,6 @@ document.getElementById("submitName").onclick=async()=>{
     document.getElementById("nameDrop").classList.remove("open");
   }catch{error();notify("Failed to update name");}
 };
-
 document.getElementById("sendBtn").onclick=async()=>{
   click();
   const msg=document.getElementById("messageBox").value;
@@ -202,7 +198,6 @@ document.getElementById("sendBtn").onclick=async()=>{
     notify("Message sent");
   }catch{error();notify("Send failed");}
 };
-
 document.getElementById("spamBtn").onclick=()=>{
   click();
   const msg=document.getElementById("messageBox").value;
@@ -212,14 +207,12 @@ document.getElementById("spamBtn").onclick=()=>{
   success();
   notify("Spam started");
 };
-
 document.getElementById("stopSpamBtn").onclick=()=>{
   click();
   clearInterval(spammer);
   document.getElementById("stopSpamBtn").disabled=true;
   notify("Spam stopped");
 };
-
 document.getElementById("deleteBtn").onclick=async()=>{
   click();
   if(!valid) return;
@@ -233,6 +226,5 @@ document.getElementById("deleteBtn").onclick=async()=>{
   }catch{error();notify("Delete failed");}
 };
 </script>
-
 </body>
 </html>
